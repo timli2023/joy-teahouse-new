@@ -111,8 +111,8 @@ const words = t[language];
     {loading ? <p>正在加载菜单…</p> : <section className="grid">{visible.map(p=><article className="card" key={p.id}><div className="prodName">{label(p)}</div><div className="muted">{p.subcategory}</div>
       <div className="price">{p.is_drink ? `小杯 ${Number(p.size_prices?.small).toFixed(2)} / 大杯 ${Number(p.size_prices?.large).toFixed(2)} JD` : `${Number(p.price).toFixed(2)} JD`}</div>
       <button onClick={()=>add(p)}>加入购物车 +</button></article>)}</section>}
-    <section className="cart"><h2>购物车 / Cart</h2>
-      {!cart.length && <p className="muted">尚未选择商品</p>}
+    <section className="cart"><h2>{words.cart}</h2>
+      {!cart.length && <p className="muted">{words.empty}</p>}
       {cart.map((x,i)=><div className="cartLine" key={`${x.product.id}-${i}`}>
         <div className="lineTitle">{label(x.product)}</div>
         {x.product.is_drink && <div className="options">
