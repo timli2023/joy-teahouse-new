@@ -123,7 +123,7 @@ const words = t[language];
         <div className="row"><label>{words.quantity} <input type="number" min="1" max="50" value={x.quantity} onChange={e=>update(i,{quantity:Math.max(1,Number(e.target.value))})}/></label><button className="danger" onClick={()=>remove(i)}>{words.remove}</button></div>
       </div>)}
       <div className="totals"><p>{words.subtotal}:：{subtotal.toFixed(2)} JD</p><p>{words.packaging}:：{packagingFee.toFixed(2)} JD</p><h3>{words.total}:：{total.toFixed(2)} JD</h3></div>
-      <button className="submit" disabled={busy || !cart.length} onClick={submit}>{busy?"提交中…":"确认下单 / Place Order"}</button>
+      <button className="submit" disabled={busy || !cart.length} onClick={submit}>{busy ? words.submitting : words.submit}</button>
       {message && <p className="message">{message}</p>}
     </section>
     <footer>JOY TEAHOUSE</footer>
