@@ -70,11 +70,11 @@ export default function Home() {
 const t = {
   zh: {
     cart: "购物车", empty: "尚未选择商品",
-    size: "words.size", small: "words.small", large: "words.large",
-    temperature: "words.temperature", iced: "words.iced", hot: "words.hot",
-    sweetness: "words.sweetness", quantity: "words.quantity", remove: "words.remove",
-    subtotal: "商品小计", packaging: "食品打包费",
-    total: "合计", submit: "确认下单", submitting: "提交中…",
+    size: "{words.size}", small: "{words.small}", large: "{words.large}",
+    temperature: "{words.temperature}", iced: "{words.iced}", hot: "{words.hot}",
+    sweetness: "{words.sweetness}", quantity: "{words.quantity}", remove: "{words.remove}",
+    subtotal: "{words.subtotal}:", packaging: "{words.packaging}:",
+    total: "{words.total}:", submit: "确认下单", submitting: "提交中…",
     add: "加入购物车"
   },
   en: {
@@ -109,20 +109,20 @@ const words = t[language];
     </section>
     <nav className="cats">{categories.map(c=><button key={c[0]} className={category===c[0]?"chosen":""} onClick={()=>setCategory(c[0])}>{c[language==="en"?2:language==="ar"?3:1]}</button>)}</nav>
     {loading ? <p>正在加载菜单…</p> : <section className="grid">{visible.map(p=><article className="card" key={p.id}><div className="prodName">{label(p)}</div><div className="muted">{p.subcategory}</div>
-      <div className="price">{p.is_drink ? `words.small ${Number(p.size_prices?.small).toFixed(2)} / words.large ${Number(p.size_prices?.large).toFixed(2)} JD` : `${Number(p.price).toFixed(2)} JD`}</div>
+      <div className="price">{p.is_drink ? `{words.small} ${Number(p.size_prices?.small).toFixed(2)} / {words.large} ${Number(p.size_prices?.large).toFixed(2)} JD` : `${Number(p.price).toFixed(2)} JD`}</div>
       <button onClick={()=>add(p)}>加入购物车 +</button></article>)}</section>}
     <section className="cart"><h2>{words.cart}</h2>
       {!cart.length && <p className="muted">{words.empty}</p>}
       {cart.map((x,i)=><div className="cartLine" key={`${x.product.id}-${i}`}>
         <div className="lineTitle">{label(x.product)}</div>
         {x.product.is_drink && <div className="options">
-          <label>{words.size} <select value={x.size} onChange={e=>update(i,{size:e.target.value as any})}><option value="small">words.small</option><option value="large">words.large</option></select></label>
-          <label>words.temperature <select value={x.temperature} onChange={e=>update(i,{temperature:e.target.value as any})}><option value="iced">words.iced</option><option value="hot">words.hot</option></select></label>
-          <label>words.sweetness <select value={x.sweetness} onChange={e=>update(i,{sweetness:e.target.value})}>{["10%","30%","50%","70%","100%"].map(v=><option key={v}>{v}</option>)}</select></label>
+          <label>{words.size} <select value={x.size} onChange={e=>update(i,{size:e.target.value as any})}><option value="small">{words.small}</option><option value="large">{words.large}</option></select></label>
+          <label>{words.temperature} <select value={x.temperature} onChange={e=>update(i,{temperature:e.target.value as any})}><option value="iced">{words.iced}</option><option value="hot">{words.hot}</option></select></label>
+          <label>{words.sweetness} <select value={x.sweetness} onChange={e=>update(i,{sweetness:e.target.value})}>{["10%","30%","50%","70%","100%"].map(v=><option key={v}>{v}</option>)}</select></label>
         </div>}
-        <div className="row"><label>words.quantity <input type="number" min="1" max="50" value={x.quantity} onChange={e=>update(i,{quantity:Math.max(1,Number(e.target.value))})}/></label><button className="danger" onClick={()=>remove(i)}>words.remove</button></div>
+        <div className="row"><label>{words.quantity} <input type="number" min="1" max="50" value={x.quantity} onChange={e=>update(i,{quantity:Math.max(1,Number(e.target.value))})}/></label><button className="danger" onClick={()=>remove(i)}>{words.remove}</button></div>
       </div>)}
-      <div className="totals"><p>商品小计：{subtotal.toFixed(2)} JD</p><p>食品打包费：{packagingFee.toFixed(2)} JD</p><h3>合计：{total.toFixed(2)} JD</h3></div>
+      <div className="totals"><p>{words.subtotal}:：{subtotal.toFixed(2)} JD</p><p>{words.packaging}:：{packagingFee.toFixed(2)} JD</p><h3>{words.total}:：{total.toFixed(2)} JD</h3></div>
       <button className="submit" disabled={busy || !cart.length} onClick={submit}>{busy?"提交中…":"确认下单 / Place Order"}</button>
       {message && <p className="message">{message}</p>}
     </section>
