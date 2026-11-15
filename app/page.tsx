@@ -65,6 +65,39 @@ export default function Home() {
   }
 
   const label = (p: Product) => language === "en" ? p.name_en : language === "ar" ? p.name_ar : p.name_zh;
+  const label = (p: Product) => language === "en" ? p.name_en : language === "ar" ? p.name_ar : p.name_zh;
+
+const t = {
+  zh: {
+    cart: "购物车", empty: "尚未选择商品",
+    size: "杯型", small: "小杯", large: "大杯",
+    temperature: "温度", iced: "冰的", hot: "热的",
+    sweetness: "甜度", quantity: "数量", remove: "删除",
+    subtotal: "商品小计", packaging: "食品打包费",
+    total: "合计", submit: "确认下单", submitting: "提交中…",
+    add: "加入购物车"
+  },
+  en: {
+    cart: "Shopping Cart", empty: "Your cart is empty",
+    size: "Size", small: "Small", large: "Large",
+    temperature: "Temperature", iced: "Iced", hot: "Hot",
+    sweetness: "Sweetness", quantity: "Quantity", remove: "Remove",
+    subtotal: "Subtotal", packaging: "Packaging Fee",
+    total: "Total", submit: "Place Order", submitting: "Submitting…",
+    add: "Add to Cart"
+  },
+  ar: {
+    cart: "سلة التسوق", empty: "السلة فارغة",
+    size: "الحجم", small: "صغير", large: "كبير",
+    temperature: "درجة الحرارة", iced: "بارد", hot: "ساخن",
+    sweetness: "مستوى السكر", quantity: "الكمية", remove: "حذف",
+    subtotal: "المجموع الفرعي", packaging: "رسوم التغليف",
+    total: "الإجمالي", submit: "تأكيد الطلب", submitting: "جارٍ الإرسال…",
+    add: "أضف إلى السلة"
+  }
+};
+
+const words = t[language];
   return <main className={language === "ar" ? "wrap rtl" : "wrap"}>
     <header className="top"><div><h1>JOY TEAHOUSE</h1><p>扫码点餐 · Order Online</p></div>
       <select value={language} onChange={e => setLanguage(e.target.value as any)}><option value="zh">中文</option><option value="en">English</option><option value="ar">العربية</option></select>
