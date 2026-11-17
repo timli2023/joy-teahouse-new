@@ -3,12 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { COOKIE_NAME, verifyAdminToken } from "@/lib/admin-auth";
 
-const allowedStatuses = ["new", "preparing", "completed"];
+export const dynamic = "force-dynamic";
 
-export async function PATCH(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(COOKIE_NAME)?.value;
 
@@ -19,32 +16,39 @@ export async function PATCH(
       );
     }
 
-    const { id } = await context.params;
-    const body = await req.json();
-    const status = body.status;
-
-    if (!allowedStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "无效的订单状态" },
-        { status: 400 }
-      );
-    }
-
     const db = supabaseAdmin();
 
-    const { data, error } = await db
+    const { data: orders, error } = await db
       .from("orders")
-      .update({ status })
-      .eq("id", id)
-      .select()
-      .single();
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, order: data });
+    const orderIds = (orders ?? []).map((order) => order.id);
+
+    let items: any[] = [];
+
+    if (orderIds.length > 0) {
+      const { data, error: itemsError } = await db
+        .from("order_items")
+        .select("*")
+        .in("order_id", orderIds);
+
+      if (itemsError) throw itemsError;
+      items = data ?? [];
+    }
+
+    const result = (orders ?? []).map((order) => ({
+      ...order,
+      items: items.filter((item) => item.order_id === order.id),
+    }));
+
+    return NextResponse.json({ orders: result });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "更新订单失败" },
+      { error: error instanceof Error ? error.message : "读取订单失败" },
       { status: 500 }
     );
   }
