@@ -111,7 +111,8 @@ export default function AdminPage() {
         body: JSON.stringify({ pin }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+const data = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
         throw new Error(data.error || "PIN 不正确");
