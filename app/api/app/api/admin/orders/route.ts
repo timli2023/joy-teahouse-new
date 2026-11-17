@@ -1,11 +1,21 @@
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { COOKIE_NAME, verifyAdminToken } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+
+    if (!verifyAdminToken(token)) {
+      return NextResponse.json(
+        { error: "请先登录管理员账户" },
+        { status: 401 }
+      );
+    }
+
     const db = supabaseAdmin();
 
     const { data: orders, error } = await db
