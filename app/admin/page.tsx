@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, CSSProperties } from "react";
 
 type OrderItem = {
@@ -26,6 +26,44 @@ type Order = {
   items: OrderItem[];
 };
 
+async function readJson<T>(res: Response): Promise<T> {
+  const text = await res.text();
+
+  if (!text) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      "服务器返回了非 JSON 内容：" + text.slice(0, 200)
+    );
+  }
+}
+
+function playTone(context: AudioContext) {
+  if (context.state !== "running") return;
+
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = 880;
+
+  gain.gain.setValueAtTime(0.35, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(
+    0.001,
+    context.currentTime + 0.5
+  );
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.5);
+}
+
 export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -33,6 +71,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [alertOrders, setAlertOrders] = useState<Order[]>([]);
+
+  const audioRef = useRef<AudioContext | null>(null);
+  const soundEnabledRef = useRef(false);
+  const knownOrderIdsRef = useRef<Set<string> | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -40,8 +84,7 @@ export default function AdminPage() {
         cache: "no-store",
       });
 
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
+      const data = await readJson<{ orders?: Order[]; error?: string }>(res);
 
       if (res.status === 401) {
         setAuthenticated(false);
@@ -53,7 +96,36 @@ export default function AdminPage() {
         throw new Error(data.error || "读取订单失败");
       }
 
-      setOrders(data.orders ?? []);
+      const latestOrders = data.orders ?? [];
+
+      // 第一次读取只建立基准，不提醒已有旧订单
+      if (knownOrderIdsRef.current === null) {
+        knownOrderIdsRef.current = new Set(
+          latestOrders.map((order) => order.id)
+        );
+      } else {
+        const knownIds = knownOrderIdsRef.current;
+
+        const newOrders = latestOrders.filter(
+          (order) => !knownIds.has(order.id)
+        );
+
+        latestOrders.forEach((order) => knownIds.add(order.id));
+
+        // 发现新订单：声音 + 屏幕弹窗
+        if (newOrders.length > 0) {
+          setAlertOrders((previous) =>
+            [...previous, ...newOrders].slice(-10)
+          );
+
+          if (soundEnabledRef.current && audioRef.current) {
+            playTone(audioRef.current);
+          }
+        }
+      }
+
+      setOrders(latestOrders);
+      setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "读取订单失败");
     }
@@ -68,7 +140,14 @@ export default function AdminPage() {
           cache: "no-store",
         });
 
-        const data = await res.json();
+        const data = await readJson<{
+          authenticated?: boolean;
+          error?: string;
+        }>(res);
+
+        if (!res.ok) {
+          throw new Error(data.error || "检查登录状态失败");
+        }
 
         if (!active) return;
 
@@ -92,12 +171,38 @@ export default function AdminPage() {
     };
   }, [loadOrders]);
 
+  // 每 5 秒检查一次新订单
   useEffect(() => {
     if (!authenticated) return;
 
-    const timer = setInterval(loadOrders, 10000);
+    const timer = setInterval(loadOrders, 5000);
+
     return () => clearInterval(timer);
   }, [authenticated, loadOrders]);
+
+  async function toggleSound() {
+    if (soundEnabled) {
+      soundEnabledRef.current = false;
+      setSoundEnabled(false);
+      return;
+    }
+
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new AudioContext();
+      }
+
+      await audioRef.current.resume();
+
+      soundEnabledRef.current = true;
+      setSoundEnabled(true);
+
+      // 开启时播放测试音
+      playTone(audioRef.current);
+    } catch {
+      setError("无法开启声音，请检查浏览器声音设置");
+    }
+  }
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -111,14 +216,14 @@ export default function AdminPage() {
         body: JSON.stringify({ pin }),
       });
 
-      const text = await res.text();
-const data = text ? JSON.parse(text) : {};
+      const data = await readJson<{ error?: string }>(res);
 
       if (!res.ok) {
         throw new Error(data.error || "PIN 不正确");
       }
 
       setPin("");
+      knownOrderIdsRef.current = null;
       setAuthenticated(true);
       await loadOrders();
     } catch (err) {
@@ -136,18 +241,10 @@ const data = text ? JSON.parse(text) : {};
         body: JSON.stringify({ status }),
       });
 
-      const text = await res.text();
-      let data: any = {};
-
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          throw new Error(
-            "服务器返回了非 JSON 内容：" + text.slice(0, 200)
-          );
-        }
-      }
+      const data = await readJson<{
+        success?: boolean;
+        error?: string;
+      }>(res);
 
       if (res.status === 401) {
         setAuthenticated(false);
@@ -172,6 +269,12 @@ const data = text ? JSON.parse(text) : {};
       setError(err instanceof Error ? err.message : "更新订单失败");
     }
   }
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.close();
+    };
+  }, []);
 
   if (checking) {
     return <main style={styles.center}>正在检查登录状态...</main>;
@@ -207,15 +310,59 @@ const data = text ? JSON.parse(text) : {};
 
   return (
     <main style={styles.page}>
+      {/* 新订单弹窗 */}
+      {alertOrders.length > 0 && (
+        <div style={styles.overlay}>
+          <div style={styles.alertBox}>
+            <div style={styles.alertIcon}>🔔</div>
+            <h2>收到新订单！</h2>
+            <p>请及时查看并准备制作。</p>
+
+            {alertOrders.map((order) => (
+              <div key={order.id} style={styles.alertOrder}>
+                <strong>{order.order_number}</strong>
+                <span>
+                  {order.dining_type === "dine_in"
+                    ? `堂食 · 桌号 ${order.table_number ?? "-"}`
+                    : "外带"}
+                </span>
+              </div>
+            ))}
+
+            <button
+              style={styles.alertButton}
+              onClick={() => {
+                setAlertOrders([]);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              我知道了，查看订单
+            </button>
+          </div>
+        </div>
+      )}
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.heading}>Joy Teahouse 订单管理</h1>
-          <p style={styles.subtitle}>每 10 秒自动刷新订单</p>
+          <p style={styles.subtitle}>每 5 秒自动检查新订单</p>
         </div>
 
-        <button style={styles.refreshButton} onClick={loadOrders}>
-          刷新订单
-        </button>
+        <div style={styles.headerActions}>
+          <button
+            style={{
+              ...styles.soundButton,
+              background: soundEnabled ? "#16803c" : "#777",
+            }}
+            onClick={toggleSound}
+          >
+            {soundEnabled ? "🔊 声音已开启" : "🔇 开启声音"}
+          </button>
+
+          <button style={styles.refreshButton} onClick={loadOrders}>
+            刷新订单
+          </button>
+        </div>
       </header>
 
       {error && <p style={styles.error}>{error}</p>}
@@ -349,7 +496,13 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 12,
+  },
+  headerActions: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
   },
   heading: {
     fontSize: 24,
@@ -383,6 +536,13 @@ const styles: Record<string, CSSProperties> = {
     border: 0,
     borderRadius: 8,
     background: "#222",
+    color: "white",
+    cursor: "pointer",
+  },
+  soundButton: {
+    padding: "10px 16px",
+    border: 0,
+    borderRadius: 8,
     color: "white",
     cursor: "pointer",
   },
@@ -474,6 +634,48 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 8,
     background: "#777",
     color: "white",
+    cursor: "pointer",
+  },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.65)",
+    zIndex: 1000,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  alertBox: {
+    background: "white",
+    borderRadius: 16,
+    padding: 28,
+    width: "100%",
+    maxWidth: 380,
+    textAlign: "center",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
+  },
+  alertIcon: {
+    fontSize: 48,
+  },
+  alertOrder: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: 12,
+    marginTop: 8,
+    background: "#fff3cd",
+    borderRadius: 8,
+  },
+  alertButton: {
+    width: "100%",
+    padding: 14,
+    marginTop: 20,
+    border: 0,
+    borderRadius: 8,
+    background: "#16803c",
+    color: "white",
+    fontSize: 16,
     cursor: "pointer",
   },
 };
