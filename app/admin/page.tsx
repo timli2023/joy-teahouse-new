@@ -64,6 +64,196 @@ function playTone(context: AudioContext) {
   oscillator.stop(context.currentTime + 0.5);
 }
 
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char]!
+  );
+}
+
+function printOrder(order: Order) {
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    alert("打印窗口被拦截，请允许浏览器弹出窗口");
+    return;
+  }
+
+  const items = order.items
+    .map((item) => {
+      const options = item.options
+        ? Object.entries(item.options)
+            .map(
+              ([key, value]) =>
+                `${escapeHtml(key)}: ${escapeHtml(value)}`
+            )
+            .join(" · ")
+        : "";
+
+      return `
+        <div class="item">
+          <div>
+            <strong>${escapeHtml(item.product_name_zh)}</strong>
+            <div class="options">${options}</div>
+            <div>数量：${item.quantity}</div>
+          </div>
+          <strong>${Number(item.line_total).toFixed(2)} JOD</strong>
+        </div>
+      `;
+    })
+    .join("");
+
+  const kitchenItems = order.items
+    .map((item) => {
+      const options = item.options
+        ? Object.entries(item.options)
+            .map(
+              ([key, value]) =>
+                `${escapeHtml(key)}: ${escapeHtml(value)}`
+            )
+            .join(" · ")
+        : "";
+
+      return `
+        <div class="item">
+          <div>
+            <strong>${escapeHtml(item.product_name_zh)}</strong>
+            <div class="options">${options}</div>
+          </div>
+          <strong>× ${item.quantity}</strong>
+        </div>
+      `;
+    })
+    .join("");
+
+  const dining =
+    order.dining_type === "dine_in"
+      ? `堂食 · 桌号 ${order.table_number ?? "-"}`
+      : "外带";
+
+  const date = new Date(order.created_at).toLocaleString();
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Joy Teahouse Receipt</title>
+      <style>
+        @page {
+          size: 80mm auto;
+          margin: 3mm;
+        }
+        body {
+          width: 72mm;
+          margin: 0 auto;
+          color: #000;
+          font-family: Arial, sans-serif;
+          font-size: 12px;
+        }
+        .ticket {
+          padding: 4mm 0;
+          page-break-after: always;
+          break-after: page;
+        }
+        .ticket:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+        h2 {
+          text-align: center;
+          font-size: 19px;
+          margin: 4px 0;
+        }
+        .center {
+          text-align: center;
+        }
+        .line {
+          border-top: 1px dashed #000;
+          margin: 10px 0;
+        }
+        .item {
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 7px 0;
+          border-bottom: 1px dotted #aaa;
+        }
+        .options {
+          font-size: 11px;
+          margin: 4px 0;
+          white-space: normal;
+        }
+        .total {
+          display: flex;
+          justify-content: space-between;
+          margin: 7px 0;
+        }
+        .big {
+          font-size: 16px;
+          font-weight: bold;
+        }
+      </style>
+    </head>
+    <body>
+
+      <section class="ticket">
+        <h2>JOY TEAHOUSE</h2>
+        <h2>厨房制作单</h2>
+        <div class="line"></div>
+        <p>订单：${escapeHtml(order.order_number)}</p>
+        <p>${escapeHtml(dining)}</p>
+        <p>时间：${escapeHtml(date)}</p>
+        <div class="line"></div>
+        ${kitchenItems}
+        <div class="line"></div>
+        <p class="center">厨房制作单 · KITCHEN</p>
+      </section>
+
+      <section class="ticket">
+        <h2>JOY TEAHOUSE</h2>
+        <p class="center">顾客收据 · CUSTOMER RECEIPT</p>
+        <div class="line"></div>
+        <p>订单：${escapeHtml(order.order_number)}</p>
+        <p>${escapeHtml(dining)}</p>
+        <p>时间：${escapeHtml(date)}</p>
+        <div class="line"></div>
+        ${items}
+        <div class="line"></div>
+        <div class="total">
+          <span>商品金额</span>
+          <span>${Number(order.subtotal).toFixed(2)} JOD</span>
+        </div>
+        <div class="total">
+          <span>包装费</span>
+          <span>${Number(order.packaging_fee).toFixed(2)} JOD</span>
+        </div>
+        <div class="total big">
+          <span>总金额</span>
+          <span>${Number(order.total).toFixed(2)} JOD</span>
+        </div>
+        <div class="line"></div>
+        <p class="center">THANK YOU!</p>
+        <p class="center">Thank you for choosing Joy Teahouse</p>
+      </section>
+
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
 export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
