@@ -621,6 +621,12 @@ export default function AdminPage() {
               </div>
 
               <div style={styles.actions}>
+                <button
+  style={styles.printButton}
+  onClick={() => printOrder(order)}
+>
+  🖨️ 打印两张小票
+</button>
                 {order.status !== "preparing" && (
                   <button
                     style={styles.actionButton}
@@ -826,6 +832,15 @@ const styles: Record<string, CSSProperties> = {
     color: "white",
     cursor: "pointer",
   },
+  printButton: {
+  padding: "10px 14px",
+  border: "none",
+  borderRadius: 8,
+  background: "#333333",
+  color: "#ffffff",
+  fontWeight: 600,
+  cursor: "pointer",
+},
   overlay: {
     position: "fixed",
     inset: 0,
