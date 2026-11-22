@@ -254,6 +254,22 @@ function printOrder(order: Order) {
   printWindow.print();
 }
 
+
+function getAmmanDateKey(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Amman",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -267,6 +283,25 @@ export default function AdminPage() {
   const audioRef = useRef<AudioContext | null>(null);
   const soundEnabledRef = useRef(false);
   const knownOrderIdsRef = useRef<Set<string> | null>(null);
+  
+  const todayKey = getAmmanDateKey(new Date().toISOString());
+
+  const groupedOrders = orders.reduce<
+    { date: string; orders: Order[] }[]
+  >((groups, order) => {
+    const date = getAmmanDateKey(order.created_at);
+
+    let group = groups.find((item) => item.date === date);
+
+    if (!group) {
+      group = { date, orders: [] };
+      groups.push(group);
+    }
+
+    group.orders.push(order);
+    return groups;
+  }, []);
+
 
   const loadOrders = useCallback(async () => {
     try {
@@ -557,11 +592,29 @@ export default function AdminPage() {
 
       {error && <p style={styles.error}>{error}</p>}
 
-      {orders.length === 0 ? (
-        <p style={styles.empty}>目前没有订单</p>
-      ) : (
-        <section style={styles.list}>
-          {orders.map((order) => (
+     {orders.length === 0 ? (
+  <p style={styles.empty}>目前没有订单</p>
+) : (
+  <section style={styles.list}>
+    {groupedOrders.map((group) => (
+      <div key={group.date}>
+        <h2
+          style={{
+            margin: "20px 0 12px",
+            padding: "12px 16px",
+            background: group.date === todayKey ? "#e8f5e9" : "#eeeeee",
+            borderRadius: 8,
+            fontSize: 18,
+          }}
+        >
+          {group.date === todayKey ? "📅 今天" : "📅"} {group.date}
+          <span style={{ fontSize: 14, color: "#666", marginLeft: 10 }}>
+            {group.orders.length} 笔订单
+          </span>
+        </h2>
+
+        <div style={styles.list}>
+          {group.orders.map((order) => (
             <article key={order.id} style={styles.card}>
               <div style={styles.orderHeader}>
                 <strong>{order.order_number}</strong>
@@ -622,11 +675,12 @@ export default function AdminPage() {
 
               <div style={styles.actions}>
                 <button
-  style={styles.printButton}
-  onClick={() => printOrder(order)}
->
-  🖨️ 打印两张小票
-</button>
+                  style={styles.printButton}
+                  onClick={() => printOrder(order)}
+                >
+                  🖨️ 打印两张小票
+                </button>
+
                 {order.status !== "preparing" && (
                   <button
                     style={styles.actionButton}
@@ -656,8 +710,11 @@ export default function AdminPage() {
               </div>
             </article>
           ))}
-        </section>
-      )}
+        </div>
+      </div>
+    ))}
+  </section>
+)}
     </main>
   );
 }
