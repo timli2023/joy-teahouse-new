@@ -136,6 +136,7 @@ export default function Home() {
   const [diningType, setDiningType] =
     useState<"dine_in" | "takeaway">("dine_in");
   const [tableNumber, setTableNumber] = useState("1");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -219,22 +220,36 @@ export default function Home() {
   }
 
   async function submit() {
-    if (!cart.length) {
-      setMessage(words.addFirst);
-      return;
-    }
+  if (!cart.length) {
+    setMessage(words.addFirst);
+    return;
+  }
 
-    setBusy(true);
-    setMessage("");
+  const cleanPhone = phone.trim();
+
+  if (!/^\+?[0-9]{9,15}$/.test(cleanPhone)) {
+    setMessage(
+      language === "zh"
+        ? "请输入正确的手机号码"
+        : language === "en"
+        ? "Please enter a valid phone number"
+        : "الرجاء إدخال رقم هاتف صحيح"
+    );
+    return;
+  }
+
+  setBusy(true);
+  setMessage("");
 
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          diningType,
-          tableNumber,
-          items: cart.map((x) => ({
+       body: JSON.stringify({
+  diningType,
+  tableNumber,
+  phone: cleanPhone,
+  items: cart.map((x) => ({
             productId: x.product.id,
             quantity: x.quantity,
             size: x.size,
@@ -318,6 +333,21 @@ export default function Home() {
             </select>
           </label>
         )}
+        <label>
+  {language === "zh"
+    ? "手机号码（必填）"
+    : language === "en"
+    ? "Phone Number (Required)"
+    : "رقم الهاتف (إجباري)"}
+  <input
+    type="tel"
+    value={phone}
+    onChange={(e) => setPhone(e.target.value)}
+    placeholder="0791234567"
+    required
+    dir="ltr"
+  />
+</label>
       </section>
 
       <nav className="cats">
