@@ -18,6 +18,7 @@ type Order = {
   order_number: string;
   dining_type: string;
   table_number: number | null;
+  phone: string | null;
   subtotal: number;
   packaging_fee: number;
   total: number;
@@ -86,7 +87,9 @@ function printOrder(order: Order) {
     alert("打印窗口被拦截，请允许浏览器弹出窗口");
     return;
   }
-
+const phoneLine = order.phone
+  ? `<p>顾客电话：${escapeHtml(order.phone)}</p>`
+  : "";
   const items = order.items
     .map((item) => {
       const options = item.options
@@ -212,6 +215,7 @@ function printOrder(order: Order) {
         <p>订单：${escapeHtml(order.order_number)}</p>
         <p>${escapeHtml(dining)}</p>
         <p>时间：${escapeHtml(date)}</p>
+        ${phoneLine}
         <div class="line"></div>
         ${kitchenItems}
         <div class="line"></div>
@@ -225,6 +229,7 @@ function printOrder(order: Order) {
         <p>订单：${escapeHtml(order.order_number)}</p>
         <p>${escapeHtml(dining)}</p>
         <p>时间：${escapeHtml(date)}</p>
+        ${phoneLine}
         <div class="line"></div>
         ${items}
         <div class="line"></div>
@@ -636,7 +641,9 @@ export default function AdminPage() {
               <p style={styles.time}>
                 {new Date(order.created_at).toLocaleString()}
               </p>
-
+<p>
+  📱 顾客电话：{order.phone || "未填写"}
+</p>
               <div style={styles.items}>
                 {order.items.map((item) => (
                   <div key={item.id} style={styles.item}>
