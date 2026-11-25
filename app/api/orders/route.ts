@@ -48,8 +48,17 @@ export async function POST(req: NextRequest) {
     const packagingFee = diningType === "takeaway" && containsFood ? 0.25 : 0;
     const total = Number((subtotal + packagingFee).toFixed(2));
     const orderNo = `J${Date.now().toString().slice(-8)}`;
+   const phone = String(body.phone ?? "").trim();
+
+if (!/^\+?[0-9]{9,15}$/.test(phone)) {
+  return NextResponse.json(
+    { error: "请输入正确的手机号码" },
+    { status: 400 }
+  );
+}
     const { data: order, error: orderError } = await db.from("orders").insert({
       order_number: orderNo, dining_type: diningType, table_number: diningType === "dine_in" ? tableNumber : null,
+      phone,
       subtotal: Number(subtotal.toFixed(2)), packaging_fee: packagingFee, total, status: "new"
     }).select().single();
     if (orderError) throw orderError;
